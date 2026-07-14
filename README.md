@@ -21,7 +21,6 @@
 
 - 純 Vanilla JavaScript，無任何框架或套件依賴
 - Canvas 2D 繪製棋盤與棋子
-- 單一 `index.html` 檔案，包含 HTML / CSS / JS
 
 ## 🚀 本機執行
 
