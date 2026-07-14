@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>五子棋</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f5f5f5; display: flex; justify-content: center; padding: 2rem 1rem; min-height: 100vh; }
+#app { width: 100%; max-width: 500px; }
+.screen { display: none; }
+.screen.active { display: block; }
+
+h1 { font-size: 28px; font-weight: 600; color: #1a1a1a; margin-bottom: 0.25rem; }
+.subtitle { font-size: 14px; color: #888; margin-bottom: 1.5rem; }
+
+.card { background: #fff; border-radius: 16px; padding: 1.5rem; box-shadow: 0 2px 12px rgba(0,0,0,0.08); margin-bottom: 1rem; }
+
+.field { margin-bottom: 1.25rem; }
+label { display: block; font-size: 13px; color: #555; margin-bottom: 6px; font-weight: 500; }
+input[type=text] {
+  width: 100%; padding: 10px 14px; border: 1px solid #ddd; border-radius: 10px;
+  font-size: 15px; outline: none; transition: border 0.2s;
+}
+input[type=text]:focus { border-color: #378ADD; }
+.err { font-size: 13px; color: #c0392b; margin-top: 4px; min-height: 18px; }
+
+.diff-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 1.5rem; }
+.diff-btn {
+  padding: 0.75rem 0.5rem; border: 1.5px solid #e0e0e0; border-radius: 12px;
+  background: #fff; cursor: pointer; text-align: center; transition: all 0.15s;
+}
+.diff-btn:hover { border-color: #378ADD; background: #f0f7ff; }
+.diff-btn.sel { border: 2px solid #378ADD; background: #e8f3fd; }
+.diff-btn .dl { display: block; font-size: 14px; font-weight: 600; color: #1a1a1a; }
+.diff-btn .dd { display: block; font-size: 11px; color: #888; margin-top: 3px; }
+.diff-btn.sel .dl { color: #185FA5; }
+
+.start-btn {
+  width: 100%; padding: 0.85rem; border-radius: 12px; border: none;
+  background: #378ADD; color: #fff; font-size: 16px; font-weight: 600; cursor: pointer;
+  transition: background 0.2s;
+}
+.start-btn:hover { background: #185FA5; }
+
+.game-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+.ptag {
+  padding: 5px 14px; border-radius: 99px; font-size: 13px; font-weight: 500;
+  border: 1.5px solid #e0e0e0; background: #f5f5f5; color: #888;
+}
+.ptag.on { background: #e8f3fd; border-color: #378ADD; color: #185FA5; }
+.tbox { font-size: 13px; color: #666; font-variant-numeric: tabular-nums; }
+#board { display: block; border-radius: 12px; }
+.sbar { margin-top: 0.6rem; font-size: 14px; color: #666; min-height: 20px; text-align: center; }
+
+#result-screen { text-align: center; }
+.rbadge {
+  display: inline-block; padding: 0.45rem 1.5rem; border-radius: 99px;
+  color: #fff; font-size: 14px; font-weight: 600; margin-bottom: 1rem;
+}
+.rtitle { font-size: 28px; font-weight: 700; color: #1a1a1a; margin-bottom: 0.5rem; }
+.rsub { font-size: 15px; color: #888; margin-bottom: 2rem; }
+.srow { display: flex; justify-content: center; gap: 32px; margin-bottom: 2rem; }
+.sitem { text-align: center; }
+.sv { font-size: 22px; font-weight: 700; color: #1a1a1a; }
+.sl { font-size: 12px; color: #888; margin-top: 3px; }
+.rbtn {
+  padding: 0.75rem 2.5rem; border-radius: 12px; border: 1.5px solid #ddd;
+  background: #fff; font-size: 15px; font-weight: 500; cursor: pointer;
+}
+.rbtn:hover { background: #f5f5f5; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- 設定畫面 -->
+  <div id="setup-screen" class="screen active">
+    <div style="margin-bottom:1.5rem;">
+      <h1>⚫ 五子棋</h1>
+      <p class="subtitle">人機對戰 — 先連成五子者獲勝</p>
+    </div>
+    <div class="card">
+      <div class="field">
+        <label>你的名字</label>
+        <input type="text" id="pname" placeholder="請輸入名字" maxlength="12" />
+        <div class="err" id="nerr"></div>
+      </div>
+      <div class="field">
+        <label>難易度</label>
+        <div class="diff-grid">
+          <button class="diff-btn" data-d="1"><span class="dl">初學者</span><span class="dd">隨機落子</span></button>
+          <button class="diff-btn sel" data-d="2"><span class="dl">普通</span><span class="dd">懂得攻防</span></button>
+          <button class="diff-btn" data-d="3"><span class="dl">困難</span><span class="dd">深度搜尋</span></button>
+        </div>
+      </div>
+      <button class="start-btn" id="sbtn">開始對局</button>
+    </div>
+  </div>
+
+  <!-- 遊戲畫面 -->
+  <div id="game-screen" class="screen">
+    <div class="game-header">
+      <span class="ptag on" id="tp">⚫ 玩家</span>
+      <span class="tbox" id="clk">⏱ 00:00</span>
+      <span class="ptag" id="tai">⚪ AI</span>
+    </div>
+    <canvas id="board"></canvas>
+    <div class="sbar" id="sbar">輪到你落子</div>
+  </div>
+
+  <!-- 結果畫面 -->
+  <div id="result-screen" class="screen">
+    <div class="card" style="padding:2rem 1rem;">
+      <div class="rbadge" id="rbadge"></div>
+      <div class="rtitle" id="rtitle"></div>
+      <div class="rsub" id="rsub"></div>
+      <div class="srow">
+        <div class="sitem"><div class="sv" id="stime">—</div><div class="sl">總時間</div></div>
+        <div class="sitem"><div class="sv" id="smoves">—</div><div class="sl">總手數</div></div>
+        <div class="sitem"><div class="sv" id="sdiff">—</div><div class="sl">難易度</div></div>
+      </div>
+      <button class="rbtn" id="replbtn">🔁 再來一局</button>
+    </div>
+  </div>
+
+</div>
+<script>
+const N = 15;
+const DNAMES = {1:'初學者', 2:'普通', 3:'困難'};
+let CELL = 30, PAD = 30;
+let pname, diff, bd, turn, over, t0, tiv, moves;
+
+function $(id){ return document.getElementById(id); }
+function show(id){
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  $(id).classList.add('active');
+}
+
+document.querySelectorAll('.diff-btn').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.diff-btn').forEach(x => x.classList.remove('sel'));
+  b.classList.add('sel');
+}));
+
+$('sbtn').addEventListener('click', () => {
+  const nm = $('pname').value.trim();
+  if (!nm) { $('nerr').textContent = '請先輸入名字'; return; }
+  $('nerr').textContent = '';
+  pname = nm;
+  diff = parseInt(document.querySelector('.diff-btn.sel').dataset.d);
+  initGame();
+});
+
+$('replbtn').addEventListener('click', () => show('setup-screen'));
+
+function calcSize() {
+  const avail = Math.min(window.innerWidth - 48, 460);
+  CELL = Math.max(24, Math.floor(avail / N));
+  PAD = CELL;
+}
+
+function initGame() {
+  bd = Array.from({length: N}, () => new Array(N).fill(0));
+  turn = 1; over = false; moves = 0;
+  t0 = Date.now();
+  clearInterval(tiv);
+  tiv = setInterval(() => {
+    const e = Math.floor((Date.now() - t0) / 1000);
+    $('clk').textContent = `⏱ ${String(Math.floor(e/60)).padStart(2,'0')}:${String(e%60).padStart(2,'0')}`;
+  }, 500);
+  $('tp').textContent = `⚫ ${pname}`;
+  $('tp').className = 'ptag on';
+  $('tai').className = 'ptag';
+  $('sbar').textContent = '輪到你落子';
+  calcSize();
+  const c = $('board');
+  const sz = CELL * (N - 1) + PAD * 2;
+  c.width = sz; c.height = sz;
+  c.onclick = onBoardClick;
+  show('game-screen');
+  draw();
+}
+
+function draw() {
+  const c = $('board'), ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, c.width, c.height);
+  ctx.fillStyle = '#f0c060';
+  ctx.beginPath();
+  ctx.roundRect(0, 0, c.width, c.height, 12);
+  ctx.fill();
+  ctx.strokeStyle = '#9a6b10'; ctx.lineWidth = 0.8;
+  for (let i = 0; i < N; i++) {
+    ctx.beginPath(); ctx.moveTo(PAD + i*CELL, PAD); ctx.lineTo(PAD + i*CELL, PAD + (N-1)*CELL); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(PAD, PAD + i*CELL); ctx.lineTo(PAD + (N-1)*CELL, PAD + i*CELL); ctx.stroke();
+  }
+  ctx.fillStyle = '#9a6b10';
+  [[3,3],[3,11],[11,3],[11,11],[7,7],[3,7],[7,3],[11,7],[7,11]].forEach(([r,cc]) => {
+    ctx.beginPath(); ctx.arc(PAD + cc*CELL, PAD + r*CELL, 3.5, 0, Math.PI*2); ctx.fill();
+  });
+  for (let r = 0; r < N; r++)
+    for (let cc = 0; cc < N; cc++)
+      if (bd[r][cc]) drawPiece(ctx, r, cc, bd[r][cc]);
+}
+
+function drawPiece(ctx, r, cc, who) {
+  const x = PAD + cc*CELL, y = PAD + r*CELL, rad = CELL * 0.43;
+  ctx.beginPath(); ctx.arc(x, y, rad, 0, Math.PI*2);
+  if (who === 1) {
+    ctx.fillStyle = '#111'; ctx.fill();
+    ctx.strokeStyle = '#555'; ctx.lineWidth = 0.5; ctx.stroke();
+    const g = ctx.createRadialGradient(x - rad*0.3, y - rad*0.35, 1, x, y, rad);
+    g.addColorStop(0, 'rgba(255,255,255,0.25)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.beginPath(); ctx.arc(x, y, rad, 0, Math.PI*2); ctx.fillStyle = g; ctx.fill();
+  } else {
+    ctx.fillStyle = '#f0f0f0'; ctx.fill();
+    ctx.strokeStyle = '#aaa'; ctx.lineWidth = 0.8; ctx.stroke();
+    const g = ctx.createRadialGradient(x - rad*0.3, y - rad*0.35, 1, x, y, rad);
+    g.addColorStop(0, 'rgba(255,255,255,0.8)'); g.addColorStop(1, 'rgba(200,200,200,0.1)');
+    ctx.beginPath(); ctx.arc(x, y, rad, 0, Math.PI*2); ctx.fillStyle = g; ctx.fill();
+  }
+}
+
+function onBoardClick(e) {
+  if (over || turn !== 1) return;
+  const rect = e.target.getBoundingClientRect();
+  const cc = Math.round((e.clientX - rect.left - PAD) / CELL);
+  const r  = Math.round((e.clientY - rect.top  - PAD) / CELL);
+  if (r < 0 || r >= N || cc < 0 || cc >= N || bd[r][cc]) return;
+  place(r, cc, 1);
+}
+
+function place(r, cc, who) {
+  bd[r][cc] = who; moves++;
+  draw();
+  if (checkWin(r, cc, who)) { endGame(who); return; }
+  if (isFull()) { endGame(0); return; }
+  if (who === 1) {
+    turn = 2; $('tp').className = 'ptag'; $('tai').className = 'ptag on';
+    $('sbar').textContent = 'AI 思考中...';
+    setTimeout(aiMove, 300);
+  } else {
+    turn = 1; $('tp').className = 'ptag on'; $('tai').className = 'ptag';
+    $('sbar').textContent = '輪到你落子';
+  }
+}
+
+function checkWin(r, cc, who) {
+  for (const [dr, dc] of [[0,1],[1,0],[1,1],[1,-1]]) {
+    let n = 1;
+    for (let d=1; d<5; d++) { const nr=r+dr*d, nc=cc+dc*d; if(nr<0||nr>=N||nc<0||nc>=N||bd[nr][nc]!==who) break; n++; }
+    for (let d=1; d<5; d++) { const nr=r-dr*d, nc=cc-dc*d; if(nr<0||nr>=N||nc<0||nc>=N||bd[nr][nc]!==who) break; n++; }
+    if (n >= 5) return true;
+  }
+  return false;
+}
+
+function isFull() { return bd.every(row => row.every(v => v !== 0)); }
+
+function score(r, cc, who) {
+  let s = 0;
+  for (const [dr, dc] of [[0,1],[1,0],[1,1],[1,-1]]) {
+    let n = 1, op = 0;
+    for (let d=1;d<5;d++){const nr=r+dr*d,nc=cc+dc*d;if(nr<0||nr>=N||nc<0||nc>=N||bd[nr][nc]!==who){if(nr>=0&&nr<N&&nc>=0&&nc<N&&bd[nr][nc]===0)op++;break;}n++;}
+    for (let d=1;d<5;d++){const nr=r-dr*d,nc=cc-dc*d;if(nr<0||nr>=N||nc<0||nc>=N||bd[nr][nc]!==who){if(nr>=0&&nr<N&&nc>=0&&nc<N&&bd[nr][nc]===0)op++;break;}n++;}
+    if(n>=5)s+=100000; else if(n===4&&op>=1)s+=10000; else if(n===4)s+=1000;
+    else if(n===3&&op===2)s+=1000; else if(n===3)s+=100;
+    else if(n===2&&op===2)s+=50; else if(n===2)s+=10; else if(op>0)s+=2;
+  }
+  return s;
+}
+
+function getCands() {
+  const set = new Set();
+  const rng = diff >= 3 ? 2 : 1;
+  for (let r=0;r<N;r++) for (let cc=0;cc<N;cc++) {
+    if (!bd[r][cc]) continue;
+    for (let dr=-rng;dr<=rng;dr++) for (let dc=-rng;dc<=rng;dc++) {
+      const nr=r+dr, nc=cc+dc;
+      if (nr>=0&&nr<N&&nc>=0&&nc<N&&!bd[nr][nc]) set.add(nr*N+nc);
+    }
+  }
+  if (!set.size) set.add(7*N+7);
+  return [...set].map(k => [Math.floor(k/N), k%N]);
+}
+
+function aiMove() {
+  if (over) return;
+  const cands = getCands();
+  let best = null, bscore = -Infinity;
+  if (diff === 1) {
+    const empty = [];
+    for (let r=0;r<N;r++) for (let cc=0;cc<N;cc++) if (!bd[r][cc]) empty.push([r,cc]);
+    best = empty[Math.floor(Math.random() * empty.length)];
+  } else {
+    for (const [r, cc] of cands) {
+      bd[r][cc] = 2;
+      let s = score(r,cc,2)*1.1 + score(r,cc,1)*0.95;
+      if (diff === 3) {
+        for (const [pr,pc] of cands) {
+          if (bd[pr][pc] || (pr===r&&pc===cc)) continue;
+          bd[pr][pc] = 1; s -= score(pr,pc,1)*0.5; bd[pr][pc] = 0;
+        }
+      }
+      bd[r][cc] = 0;
+      if (s > bscore) { bscore = s; best = [r, cc]; }
+    }
+  }
+  if (best) place(best[0], best[1], 2);
+}
+
+function endGame(who) {
+  over = true; clearInterval(tiv);
+  const e = Math.floor((Date.now() - t0) / 1000);
+  const ts = `${String(Math.floor(e/60)).padStart(2,'0')}:${String(e%60).padStart(2,'0')}`;
+  setTimeout(() => {
+    const bg = who===1 ? '#1D9E75' : who===2 ? '#D85A30' : '#888';
+    $('rbadge').style.background = bg;
+    if (who===1) { $('rbadge').textContent='🏆 你贏了'; $('rtitle').textContent=`${pname} 獲勝！`; $('rsub').textContent='恭喜擊敗 AI！'; }
+    else if (who===2) { $('rbadge').textContent='🤖 AI 勝利'; $('rtitle').textContent='AI 獲勝'; $('rsub').textContent='別灰心，再挑戰一局！'; }
+    else { $('rbadge').textContent='🤝 平局'; $('rtitle').textContent='平局！'; $('rsub').textContent='棋盤已滿，旗鼓相當！'; }
+    $('stime').textContent = ts;
+    $('smoves').textContent = moves + ' 手';
+    $('sdiff').textContent = DNAMES[diff];
+    show('result-screen');
+  }, 400);
+}
+</script>
+</body>
+</html>
