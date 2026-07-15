@@ -9,6 +9,30 @@ function show(id){
   $(id).classList.add('active');
 }
 
+// 深色模式：讀取先前的設定，沒有的話跟隨系統偏好
+(function initTheme() {
+  const saved = localStorage.getItem('theme');
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const theme = saved || (prefersDark ? 'dark' : 'light');
+  applyTheme(theme);
+})();
+
+function applyTheme(theme) {
+  if (theme === 'dark') {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    $('themeBtn').textContent = '☀️ 淺色模式';
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+    $('themeBtn').textContent = '🌙 深色模式';
+  }
+  localStorage.setItem('theme', theme);
+}
+
+$('themeBtn').addEventListener('click', () => {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  applyTheme(isDark ? 'light' : 'dark');
+});
+
 document.querySelectorAll('.diff-btn').forEach(b => b.addEventListener('click', () => {
   document.querySelectorAll('.diff-btn').forEach(x => x.classList.remove('sel'));
   b.classList.add('sel');
