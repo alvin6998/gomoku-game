@@ -11,16 +11,61 @@
 - 🖤 15×15 標準棋盤，經典黑白子對戰
 - 🤖 三種 AI 難度
   - **初學者**：隨機落子
-  - **普通**：具備基本攻防判斷
-  - **困難**：多步搜尋，會預判玩家威脅
+  - **普通**：Minimax + Alpha-Beta 搜尋
+  - **困難**：Principal Variation Search、Iterative Deepening、Transposition Table、Threat Search 等進階搜尋技術
 - ⏱ 即時計時器 / 手數統計
 - 🏆 對局結束顯示完整結果（勝負、耗時、手數、難度）
 - 📱 響應式設計，手機、平板、電腦都能玩
 
 ## 🛠 技術
 
-- 純 Vanilla JavaScript，無任何框架或套件依賴
-- Canvas 2D 繪製棋盤與棋子
+- Vanilla JavaScript (ES6)
+- HTML5 Canvas
+- CSS3
+- Minimax
+- Alpha-Beta Pruning
+- Principal Variation Search (PVS)
+- Zobrist Hashing
+
+## 🧠 AI Engine
+
+困難模式採用傳統棋類 AI 搜尋演算法，而非單純規則判斷。
+
+### Search Algorithm
+
+- Minimax
+- Alpha-Beta Pruning
+- Principal Variation Search (PVS)
+- Iterative Deepening
+
+### Search Optimization
+
+- Transposition Table
+- Zobrist Hashing
+- Killer Move Heuristic
+- History Heuristic
+- Move Ordering
+- Candidate Move Pruning
+
+### Evaluation
+
+- Pattern-based Evaluation
+- Immediate Win Detection
+- Immediate Threat Blocking
+- Time-controlled Search
+
+## 🚀 AI Features
+
+- ✅ Minimax
+- ✅ Alpha-Beta Pruning
+- ✅ Principal Variation Search
+- ✅ Iterative Deepening
+- ✅ Transposition Table
+- ✅ Zobrist Hashing
+- ✅ Killer Move Heuristic
+- ✅ History Heuristic
+- ✅ Threat Search
+- ✅ Pattern-based Evaluation
 
 ## 🚀 本機執行
 
@@ -42,9 +87,11 @@ cd gomoku-game
 ## 📌 待辦 / 未來計畫
 
 - [ ] 悔棋功能
-- [ ] 深色模式
-- [ ] 更高難度的 AI（Minimax + Alpha-Beta 剪枝）
+- [ ] AI vs AI 模式
+- [ ] 開局庫（Opening Book）
 - [ ] 對戰紀錄保存
+- [ ] 棋譜匯出 / 匯入（SGF）
+- [ ] Web Worker 多執行緒搜尋
 
 歡迎透過 [Issues](https://github.com/alvin6998/gomoku-game/issues) 回報 bug 或提出功能建議 🙌
 

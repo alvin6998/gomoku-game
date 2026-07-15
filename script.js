@@ -152,66 +152,156 @@ function checkWin(r, cc, who) {
 
 function isFull() { return bd.every(row => row.every(v => v !== 0)); }
 
+const AI_PATTERN_SCORES = {
+  five: 1000000, openFour: 100000, closedFour: 15000, doubleFour: 120000,
+  openThree: 8000, brokenThree: 3500, openTwo: 400
+};
+const DIRECTIONS = [[0,1],[1,0],[1,1],[1,-1]];
+
+function makeMove(r, cc, who, state) { bd[r][cc] = who; if(state)state.hash^=ZOBRIST[r][cc][who]; return [r,cc,who]; }
+function undoMove([r,cc,who], state) { bd[r][cc] = 0; if(state)state.hash^=ZOBRIST[r][cc][who]; }
+function withMove(r, cc, who, fn, state) { const move=makeMove(r,cc,who,state); try { return fn(); } finally { undoMove(move,state); } }
+function inBounds(r, cc) { return r >= 0 && r < N && cc >= 0 && cc < N; }
+function lineThrough(r, cc, dr, dc, who) {
+  let line='';
+  for(let step=-4;step<=4;step++) { const nr=r+dr*step,nc=cc+dc*step; line+=!inBounds(nr,nc)?'#':bd[nr][nc]===who?'X':bd[nr][nc]===0?'.':'#'; }
+  return line;
+}
+function hasPattern(line, pattern) {
+  for(let i=0;i<=line.length-pattern.length;i++) if(line.slice(i,i+pattern.length)===pattern && i<=4 && 4<i+pattern.length)return true;
+  return false;
+}
+function evaluateDirection(r, cc, dr, dc, who) {
+  const line=lineThrough(r,cc,dr,dc,who);
+  if(hasPattern(line,'XXXXX'))return {score:AI_PATTERN_SCORES.five,four:false};
+  if(hasPattern(line,'.XXXX.'))return {score:AI_PATTERN_SCORES.openFour,four:true};
+  if(hasPattern(line,'XXXX.')||hasPattern(line,'.XXXX'))return {score:AI_PATTERN_SCORES.closedFour,four:true};
+  if(hasPattern(line,'.XXX.'))return {score:AI_PATTERN_SCORES.openThree,four:false};
+  if(hasPattern(line,'.XX.X.')||hasPattern(line,'.X.XX.'))return {score:AI_PATTERN_SCORES.brokenThree,four:false};
+  if(hasPattern(line,'.XX.'))return {score:AI_PATTERN_SCORES.openTwo,four:false};
+  return {score:0,four:false};
+}
 function score(r, cc, who) {
-  let s = 0;
-  for (const [dr, dc] of [[0,1],[1,0],[1,1],[1,-1]]) {
-    let n = 1, op = 0;
-    for (let d=1;d<5;d++){const nr=r+dr*d,nc=cc+dc*d;if(nr<0||nr>=N||nc<0||nc>=N||bd[nr][nc]!==who){if(nr>=0&&nr<N&&nc>=0&&nc<N&&bd[nr][nc]===0)op++;break;}n++;}
-    for (let d=1;d<5;d++){const nr=r-dr*d,nc=cc-dc*d;if(nr<0||nr>=N||nc<0||nc>=N||bd[nr][nc]!==who){if(nr>=0&&nr<N&&nc>=0&&nc<N&&bd[nr][nc]===0)op++;break;}n++;}
-    if(n>=5)s+=100000; else if(n===4&&op>=1)s+=10000; else if(n===4)s+=1000;
-    else if(n===3&&op===2)s+=1000; else if(n===3)s+=100;
-    else if(n===2&&op===2)s+=50; else if(n===2)s+=10; else if(op>0)s+=2;
-  }
-  return s;
+  let total=0,fours=0;
+  for(const [dr,dc] of DIRECTIONS) { const result=evaluateDirection(r,cc,dr,dc,who); total+=result.score; fours+=Number(result.four); }
+  return total+(fours>=2?AI_PATTERN_SCORES.doubleFour:0);
 }
 
-function getCands() {
+const AI_TIME_LIMITS = { 1: 50, 2: 300, 3: 800 };
+const AI_MAX_CANDIDATES = 10;
+const WIN_SCORE = 100000000;
+const ZOBRIST = createZobristTable();
+
+function createZobristTable() {
+  let seed=0x9e3779b9;
+  const next=()=>{ seed^=seed<<13; seed^=seed>>>17; seed^=seed<<5; return BigInt(seed>>>0); };
+  return Array.from({length:N},()=>Array.from({length:N},()=>[0n,next(),next()]));
+}
+function hashBoard() {
+  let hash=0n;
+  for(let r=0;r<N;r++)for(let cc=0;cc<N;cc++)if(bd[r][cc])hash^=ZOBRIST[r][cc][bd[r][cc]];
+  return hash;
+}
+
+function getCands(limit = AI_MAX_CANDIDATES, who = 2) {
   const set = new Set();
-  const rng = diff >= 3 ? 2 : 1;
   for (let r=0;r<N;r++) for (let cc=0;cc<N;cc++) {
     if (!bd[r][cc]) continue;
-    for (let dr=-rng;dr<=rng;dr++) for (let dc=-rng;dc<=rng;dc++) {
+    for (let dr=-2;dr<=2;dr++) for (let dc=-2;dc<=2;dc++) {
       const nr=r+dr, nc=cc+dc;
       if (nr>=0&&nr<N&&nc>=0&&nc<N&&!bd[nr][nc]) set.add(nr*N+nc);
     }
   }
-  if (!set.size) set.add(7*N+7);
-  return [...set].map(k => [Math.floor(k/N), k%N]);
+  if (!set.size) return bd[7][7] ? [] : [[7,7]];
+  return [...set].map(k => [Math.floor(k/N), k%N])
+    .sort((a,b) => moveOrderScore(b[0],b[1],who) - moveOrderScore(a[0],a[1],who)).slice(0, limit);
+}
+
+function moveOrderScore(r, cc, who) {
+  const attack=withMove(r,cc,who,()=>score(r,cc,who));
+  const defend=withMove(r,cc,3-who,()=>score(r,cc,3-who));
+  return attack*1.1+defend;
+}
+function boardKey(who, state) { return who+':'+state.hash.toString(16); }
+function evaluateBoard() {
+  return getCands(AI_MAX_CANDIDATES,2).reduce((total,[r,cc]) => total+moveOrderScore(r,cc,2)-moveOrderScore(r,cc,1),0);
+}
+function findTacticalMove(who) {
+  for (const [r,cc] of getCands(225,who)) if(withMove(r,cc,who,()=>checkWin(r,cc,who))) return [r,cc];
+  return null;
+}
+function terminalScore(depth, whoJustMoved) { return whoJustMoved===2 ? WIN_SCORE+depth : -WIN_SCORE-depth; }
+function useTransposition(table, key, depth, alpha, beta) {
+  const entry=table.get(key);
+  if(!entry || entry.depth<depth) return {entry,alpha,beta,hit:false};
+  if(entry.flag==='exact') return {entry,alpha,beta,hit:true};
+  if(entry.flag==='lower') alpha=Math.max(alpha,entry.score); else beta=Math.min(beta,entry.score);
+  return {entry,alpha,beta,hit:alpha>=beta};
+}
+function moveId(r, cc) { return r*N+cc; }
+function createSearchContext() {
+  return { killers:Array.from({length:12},()=>[]), history:Array.from({length:3},()=>new Array(N*N).fill(0)) };
+}
+function rememberCutoff(context, depth, r, cc, who) {
+  const killers=context.killers[depth]||[];
+  if(!killers.some(move=>move[0]===r&&move[1]===cc)) killers.unshift([r,cc]);
+  context.killers[depth]=killers.slice(0,2);
+  context.history[who][moveId(r,cc)]+=depth*depth;
+}
+function orderMoves(cands, cachedMove, context, depth, who) {
+  const killers=context.killers[depth]||[], history=context.history[who];
+  const rank=([r,cc])=>{
+    if(cachedMove&&r===cachedMove[0]&&cc===cachedMove[1])return 1e12;
+    const killer=killers.findIndex(move=>move[0]===r&&move[1]===cc);
+    return (killer<0?0:1e10-killer*1e8)+history[moveId(r,cc)];
+  };
+  return cands.sort((a,b)=>rank(b)-rank(a));
+}
+function cacheResult(table, key, depth, score, move, alpha, beta) {
+  const flag=score<=alpha?'upper':score>=beta?'lower':'exact';
+  return table.set(key,{depth,score,move,flag}).get(key);
+}
+function isBetter(score, bestScore, who) { return who===2 ? score>bestScore : score<bestScore; }
+function searchPvsMove(r, cc, who, depth, alpha, beta, isFirst, table, deadline, state, context) {
+  const search=(a,b)=>withMove(r,cc,who,()=>minimax(depth-1,a,b,3-who,[r,cc],table,deadline,state,context),state);
+  if(isFirst) return search(alpha,beta);
+  let result=who===2 ? search(alpha,alpha+1) : search(beta-1,beta);
+  const needsFullWindow=who===2 ? result.score>alpha&&result.score<beta : result.score<beta&&result.score>alpha;
+  if(needsFullWindow) result=search(alpha,beta);
+  return result;
+}
+
+function minimax(depth, alpha, beta, who, lastMove, table, deadline, state, context) {
+  if (performance.now() >= deadline) throw new Error('AI_TIMEOUT');
+  if (lastMove && checkWin(lastMove[0],lastMove[1],3-who)) return {score:terminalScore(depth,3-who),move:null};
+  if (!depth || isFull()) return {score:evaluateBoard(),move:null};
+  const key=boardKey(who,state), cached=useTransposition(table,key,depth,alpha,beta);
+  if(cached.hit) return cached.entry;
+  alpha=cached.alpha; beta=cached.beta;
+  const alphaStart=alpha,betaStart=beta; let bestScore=who===2?-Infinity:Infinity,bestMove=null;
+  const cands=orderMoves(getCands(AI_MAX_CANDIDATES,who),cached.entry?.move,context,depth,who);
+  for(let i=0;i<cands.length;i++) {
+    const [r,cc]=cands[i];
+    const result=searchPvsMove(r,cc,who,depth,alpha,beta,i===0,table,deadline,state,context);
+    if(isBetter(result.score,bestScore,who)){bestScore=result.score;bestMove=[r,cc];}
+    if(who===2) alpha=Math.max(alpha,bestScore); else beta=Math.min(beta,bestScore);
+    if(alpha>=beta) { rememberCutoff(context,depth,r,cc,who); break; }
+  }
+  return cacheResult(table,key,depth,bestScore,bestMove,alphaStart,betaStart);
 }
 
 function aiMove() {
-  if (over) return;
-  const cands = getCands();
-  let best = null, bscore = -Infinity;
-  if (diff === 1) {
-    const empty = [];
-    for (let r=0;r<N;r++) for (let cc=0;cc<N;cc++) if (!bd[r][cc]) empty.push([r,cc]);
-    best = empty[Math.floor(Math.random() * empty.length)];
-  } else {
-    const evals = [];
-    for (const [r, cc] of cands) {
-      bd[r][cc] = 2;
-      let s = score(r,cc,2)*1.1 + score(r,cc,1)*0.95;
-      if (diff === 3) {
-        for (const [pr,pc] of cands) {
-          if (bd[pr][pc] || (pr===r&&pc===cc)) continue;
-          bd[pr][pc] = 1; s -= score(pr,pc,1)*0.5; bd[pr][pc] = 0;
-        }
-      }
-      bd[r][cc] = 0;
-      evals.push([s, r, cc]);
-    }
-    evals.sort((a, b) => b[0] - a[0]);
-    if (diff === 2 && evals[0][0] < 1000) {
-      // 普通難度：非關鍵局面時，從前幾名候選中隨機挑一個，降低強度、增加變化
-      const pool = evals.slice(0, Math.min(4, evals.length));
-      const pick = pool[Math.floor(Math.random() * pool.length)];
-      best = [pick[1], pick[2]];
-    } else {
-      best = [evals[0][1], evals[0][2]];
+  if(over)return;
+  let best=findTacticalMove(2)||findTacticalMove(1);
+  if(!best) {
+    const deadline=performance.now()+AI_TIME_LIMITS[diff], table=new Map();
+    const state={hash:hashBoard()}, context=createSearchContext();
+    for(let depth=1;depth<=10&&performance.now()<deadline;depth++) {
+      try { const result=minimax(depth,-Infinity,Infinity,2,null,table,deadline,state,context); if(result.move)best=result.move; }
+      catch(err) { if(err.message!=='AI_TIMEOUT')throw err; break; }
     }
   }
-  if (best) place(best[0], best[1], 2);
+  if(best)place(best[0],best[1],2);
 }
 
 function endGame(who) {
