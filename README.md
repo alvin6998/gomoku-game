@@ -19,53 +19,51 @@
 
 ## 🛠 技術
 
-- Vanilla JavaScript (ES6)
+### 前端
+
+- 原生 JavaScript（Vanilla JavaScript ES6）
 - HTML5 Canvas
 - CSS3
-- Minimax
-- Alpha-Beta Pruning
-- Principal Variation Search (PVS)
-- Zobrist Hashing
 
-## 🧠 AI Engine
+## 🧠 AI 引擎
 
-困難模式採用傳統棋類 AI 搜尋演算法，而非單純規則判斷。
+困難模式並非採用固定規則，而是結合多種經典棋類搜尋演算法與最佳化技術，能預測未來局勢並進行攻防決策。
 
-### Search Algorithm
+### 🔍 搜尋演算法（Search Algorithms）
 
-- Minimax
-- Alpha-Beta Pruning
-- Principal Variation Search (PVS)
-- Iterative Deepening
+- 極小極大搜尋（Minimax）
+- Alpha-Beta 剪枝（Alpha-Beta Pruning）
+- 主要變化搜尋（Principal Variation Search, PVS）
+- 逐步加深搜尋（Iterative Deepening）
 
-### Search Optimization
+### ⚡ 搜尋最佳化（Search Optimizations）
 
-- Transposition Table
-- Zobrist Hashing
-- Killer Move Heuristic
-- History Heuristic
-- Move Ordering
-- Candidate Move Pruning
+- 局面快取表（Transposition Table）
+- Zobrist 雜湊（Zobrist Hashing）
+- 殺手著法啟發式（Killer Move Heuristic）
+- 歷史啟發式（History Heuristic）
+- 走法排序（Move Ordering）
+- 候選著法篩選（Candidate Move Pruning）
 
-### Evaluation
+### 🎯 局面分析
 
-- Pattern-based Evaluation
-- Immediate Win Detection
-- Immediate Threat Blocking
-- Time-controlled Search
+- 棋型評估（Pattern-based Evaluation）
+- 立即勝利檢測（Immediate Win Detection）
+- 立即威脅阻擋（Immediate Threat Blocking）
+- 時間控制搜尋（Time-controlled Search）
 
-## 🚀 AI Features
+## 🚀 AI 核心功能
 
-- ✅ Minimax
-- ✅ Alpha-Beta Pruning
-- ✅ Principal Variation Search
-- ✅ Iterative Deepening
-- ✅ Transposition Table
-- ✅ Zobrist Hashing
-- ✅ Killer Move Heuristic
-- ✅ History Heuristic
-- ✅ Threat Search
-- ✅ Pattern-based Evaluation
+- ✅ 極小極大搜尋（Minimax）
+- ✅ Alpha-Beta 剪枝
+- ✅ 主要變化搜尋（Principal Variation Search, PVS）
+- ✅ 逐步加深搜尋（Iterative Deepening）
+- ✅ 局面快取表（Transposition Table）
+- ✅ Zobrist 雜湊
+- ✅ 殺手著法啟發式（Killer Move Heuristic）
+- ✅ 歷史啟發式（History Heuristic）
+- ✅ 威脅搜尋（Threat Search）
+- ✅ 棋型評估（Pattern-based Evaluation）
 
 ## 🚀 本機執行
 
